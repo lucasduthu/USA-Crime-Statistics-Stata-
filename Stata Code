@@ -1,0 +1,426 @@
+
+
+*///	ECONOMÉTRIE : LA CRIMINALITÉ AUX ETATS-UNIS 
+
+		*/	ON CHERCHE À ÉVALUER LES DYNAMIQUES DU TAUX DE CRIMINALITÉ (PRINCIPALEMENT LIÉE AU TAUX DE PAUVRETÉ) ET LES DISTINGUER SELON LES DIFFÉRENTS TYPES DE CRIMES.
+		*/	PROBLÉMATIQUE : SUR QUELS LEVIERS L'ÉTAT AMÉRICAIN PEUT-IL APPUYER POUR FAIRE BAISSER LA CRIMINALITÉ AUX ETATS-UNIS ? 
+
+*///	PARTIE 1 - INTRODUCTION
+
+		*/	CARTE DE LA CRIMINALITÉ AUX USA PAR ETATS
+
+ssc install spmap, replace
+ssc install shp2dta, replace
+
+clear
+input str2 state_abbr str2 STATEFP
+"AK" 02
+"AL" 01
+"AR" 05
+"AZ" 04
+"CA" 06
+"CO" 08
+"CT" 09
+"DC" 11
+"DE" 10
+"FL" 12
+"GA" 13
+"IA" 19
+"ID" 16
+"IL" 17
+"IN" 18
+"KS" 20
+"KY" 21
+"LA" 22
+"MA" 25
+"MD" 24
+"ME" 23
+"MI" 26
+"MN" 27
+"MO" 29
+"MS" 28
+"NC" 37
+"ND" 38
+"NH" 33
+"NJ" 34
+"NM" 35
+"NV" 32
+"NY" 36
+"OH" 39
+"OK" 40
+"OR" 41
+"PA" 42
+"RI" 44
+"SC" 45
+"SD" 46
+"TN" 47
+"TX" 48
+"UT" 49
+"VA" 51
+"VT" 50
+"WA" 53
+"WI" 55
+"WV" 54
+"WY" 56
+end
+
+save fips_mapping.dta, replace
+
+import delimited "/Users/lucasduthu-paloumet/Library/Mobile Documents/com~apple~CloudDocs/FAC/L3S6/Econométrie/Projet S6/crimedata.csv", clear
+
+rename state state_abbr
+
+merge m:1 state_abbr using fips_mapping.dta
+drop _merge
+save base_STATEFP.dta, replace
+
+gen Crimerate = nonviolperpop + violentcrimesperpop
+
+collapse (mean) Crimerate, by(STATEFP)
+
+merge m:1 STATEFP using "us_states_data.dta"
+
+shp2dta using "/Users/lucasduthu-paloumet/Desktop/cb_2018_us_state_500k/cb_2018_us_state_500k.shp", database("us_states_data") coordinates("us_states_coords") genid(id) replace
+
+drop if STATEFP == "15"
+drop if STATEFP == "72"
+drop if STATEFP == "78"
+drop if STATEFP == "66"
+drop if STATEFP == "60"
+drop if STATEFP == "69"
+drop if STATEFP == "64"
+drop if STATEFP == "02"
+
+save test.dta, replace
+
+
+spmap Crimerate using "us_states_coords.dta", id(id) fcolor(Reds) ocolor(black) osize(vvvthin) clmethod(quantile) title({stSerif : Criminality in the US per State}, color(black))  clnumber(9) plotregion(icolor(white) margin(medlarge)) graphregion(icolor(white) margin(medlarge)) legstyle(2) legend(color("97 103 106") region(lcolor(White))) mosize(vvvthin) mocolor(black...) note({stSerif : {bf : Source : }Kaggle Dataset}) 
+
+
+
+
+
+
+***************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************
+
+
+
+
+
+
+
+import delimited "/Users/lucasduthu-paloumet/Library/Mobile Documents/com~apple~CloudDocs/FAC/L3S6/Econométrie/Projet S6/crimedata.csv", clear
+
+ssc install asdoc, replace
+
+*/// 	PARTIE 2 - LA BASE DE DONNÉE
+
+*	La base de donnée comprend 2215 villes américaines (lignes) pour lesquelles nous avons conservé les séries suivantes (colonnes) : 
+*	Les données datent de 2018 et ont toutes étées enregistrées cette même année. 
+		
+		*// VARIABLES EXPLICATIVES ET DE CONTRÔLE :
+*	State				=	Etat auquel appartient la ville (variable catégorielle)
+*	Unemployed			=	Taux de chômage (Pourcentage de la population sans emploi)
+*	Poverty				=	Pourcentage de la population vivant en dessous du seuil de pauvreté
+*	Educ				=	Pourcentage de la population n'ayant pas de diplôme de fin de lycée (high school)
+* 	Black				=	Pourcentage de personne de couleur noire 
+*	White				=	Pourcentage de personne de couleur blanche
+*	Asian				=	Pourcentage de personne asiatique
+*	Hispanic			=	Pourcentage de personne hispanique
+* 	Owners				=	Pourcentage de la population étant propriétaire de sa résidence principale
+*	Urban				=	Pourcentage de la population vivant en ville
+*	Urban_binary		=	Environnement urbain (variable binaire : 1 =  Oui ; 0 = Non)
+*	malepctdivorce		=	% d'Hommes divorcés
+*	femalepctdiv		=	% de Femmes divorcées
+
+		*// VARIABLES EXPLIQUÉES : 
+*	NV_Crime 			=	Nombre de crime non violent, rapporté à la population de la ville
+*	V_Crime				=	Nombre de crime violent, rapporté à la population de la ville
+*	Crimerate			=	Nombre de crime, rapporté à la population de la ville
+
+*	murdperpop			=	Nombre de meutre, rapporté à la population de la ville
+*	rapesperpop			=	Nombre de viol, rapporté à la population de la ville
+*	robbbperpop			=	Nombre de vol à main armée, rapporté à la population de la ville
+*	assaultperpop		=	Nombre d'agression, rapporté à la population de la ville
+*	burglperpop			=	Nombre de cambriolage (avec effraction), rapporté à la population de la ville
+*	larcperpop			=	Nombre de vol (sans effraction), rapporté à la population de la ville
+*	autotheftperpop		=	Nombre de vol de voiture, rapporté à la population de la ville
+*	arsonsperpop		=	Nombre d'incendie criminel, rapporté à la population de la ville
+
+
+
+		*// 	NETTOYAGE DE LA BASE 
+
+* 	Suppression des séries non utilisées 
+*	keep nonviolperpop violentcrimesperpop state population pctunemployed pctpopunderpov pctnothsgrad racepctblack racepctwhite racepctasian racepcthisp pcturban pctpersownoccup
+
+*	Création de la variable catégorielle STATE
+encode state, gen(State)
+
+label variable State " State (categorial) "
+
+*/	Création de la variable Crimerate
+gen Crimerate = nonviolperpop + violentcrimesperpop
+
+
+
+
+*/	Transformations en variables logarithmiques 
+gen ln_unemployed = ln(pctunemployed)
+gen ln_poverty = ln(pctpopunderpov)
+gen ln_educ = ln(pctnothsgrad)
+gen ln_black = ln(racepctblack)
+gen ln_owners = ln(pctpersownoccup)
+gen ln_urban = ln(pcturban)
+gen ln_nonviolent = ln(nonviolperpop)
+gen ln_violent = ln(violentcrimesperpop)
+gen ln_medincome = ln(medincome)
+
+gen ln_crimerate = ln(Crimerate)
+
+gen ln_murders = ln(murdperpop)
+gen ln_rapes = ln(rapesperpop)
+gen ln_robberies = ln(robbbperpop)
+gen ln_assaults = ln(assaultperpop)
+gen ln_burglaries = ln(burglperpop)
+gen ln_larcenies = ln(larcperpop)
+gen ln_autotheft = ln(autotheftperpop)
+gen ln_arsons = ln(arsonsperpop)
+
+*/	Labellisations
+label variable population "Population"
+label variable pctunemployed  "Unemployment Rate"
+label variable pctpopunderpov  "% Pop Under Poverty Line"
+label variable pctnothsgrad "% Pop Under Highschool Grade"
+label variable racepctblack "% Black"
+label variable racepctwhite "% White"
+label variable racepctasian "% Asian"
+label variable racepcthisp "% Hispanic"
+label variable pctpersownoccup "% House Owners"
+label variable pcturban "% Urban" 
+label variable medincome "Median Income" 
+label variable popdens "Pop Density" 
+
+label variable Crimerate "Total Crimes (per Pop)"
+label variable nonviolperpop "Non Violent Crime (per Pop)"
+label variable violentcrimesperpop "Violent Crime (per Pop)"
+
+label variable murdperpop "Murders (per Pop)"
+label variable rapesperpop "Rapes (per Pop)"
+label variable robbbperpop "Robberies (per Pop)"
+label variable assaultperpop "Assaults (per Pop)"
+label variable burglperpop "Burglaries (per Pop)"
+label variable larcperpop "Larcenies (per Pop)"
+label variable autotheftperpop "Auto Theft (per Pop)"
+label variable arsonsperpop "Arsons (per Pop)"
+
+label variable ln_unemployed "ln(Unemployment Rate)"
+label variable ln_poverty "ln(Poverty)"
+label variable ln_educ "ln(No Education)"
+label variable ln_black "ln(Black)" 
+label variable ln_owners "ln(Owners)"
+label variable ln_urban "ln(Urban)" 
+label variable ln_nonviol "ln(Non Violent Crime)"
+label variable ln_violent "ln(Violent Crime)"
+label variable ln_medincome "ln(Med Income)"
+
+label variable ln_crimerate "ln(Crime Rate)"
+
+label variable ln_murders  "ln(Murders)"
+label variable ln_rapes  "ln(Rapes)"
+label variable ln_robberies  "ln(Robberies)"
+label variable ln_assaults  "ln(Assaults)"
+label variable ln_burglaries  "ln(Burglaries)"
+label variable ln_larcenies  "ln(Larcenies)"
+label variable ln_autotheft  "ln(Auto Theft)"
+label variable ln_arsons  "ln(Arsons)"
+
+label variable malepctdivorce "% Male Divorced"
+label variable femalepctdiv "% Female Divorced"
+
+
+
+*/	Renomer les séries 
+rename racepctblack Black
+rename racepctwhite White
+rename racepctasian Asian
+rename racepcthisp Hispanic
+rename pcturban Urban
+rename pctpopunderpov Poverty
+rename pctnothsgrad Educ
+rename pctunemployed Unemployed
+rename pctpersownoccup Owners
+rename violentcrimesperpop V_Crime
+rename nonviolperpop NV_Crime
+rename population Population
+
+
+
+*/	Création variable binaire Urban 
+gen Urban_binary = Urban >= 50
+label variable Urban_binary "Urban Environment (binary)" 
+
+label define Urban_Environment 0 "Non-Urban Environment" 1 "Urban Environnement"  
+label values Urban_binary Urban_Environment
+
+
+
+
+
+
+
+
+
+
+*///	PARTIE 3 - LA CONSTRUCTION DU MODÈLE
+
+*/	PCA : divorce
+asdoc pca malepctdivorce femalepctdiv, component(2) title(Table : PCA divorce) save(PCAdivorce) replace 
+loadingplot, aspect(1) xline(0, lcolor(black)) yline(0, lcolor(black))
+
+predict pc1_div pc2_div
+label variable pc1_div "Divorce Effect" 
+label variable pc2_div "Divorce on Male (vs Female)"
+
+
+
+**/	PCA : races 
+*/	En théorie, nous ne devrions produire que 2 composantes dans la mesure où la valeur propre de la composante3 passe en dessous de 1. De plus les proportions cumulées sont déjà supérieures à 7. Néanmoins, visuellement, nous voyons que la composante3 est interessante dans l'interprétation car elle est sensible à Asian et Hispanic mais pas à White ni Black. Ainsi elle nous permet de prévaloir de l'effet que represente la part de ses population. Maintenant, la composante 4 n'apporte pas plus d'information. 
+asdoc pca Black White Asian Hispanic, title(Table : PCA races) save(PCAraces) replace
+
+loadingplot, component(3)
+
+predict pc1_race pc2_race pc3_race
+
+label variable pc1_race "Inverted White Effect (vs Others)"
+label variable pc2_race "Inverted Black Effect (vs Asian & Hispanic)"
+label variable pc3_race "Inverted Hispanic Effect (vs Asian)"
+
+
+
+
+
+
+
+*/	REGRESSION : Table Normale
+asdoc mvreg Crimerate V_Crime NV_Crime murdperpop rapesperpop robbbperpop assaultperpop burglperpop larcperpop autotheftperpop arsonsperpop = Poverty Unemployed i.Urban_binary pc1_race pc2_race pc3_race Owners Educ pc1_div pc2_div i.State, nest replace fs(6) label title(Table 1 : Results) save(normal) fhc(\b \i) dec(2) 
+
+
+
+
+
+**/ METHODE POUR PASSER DE LA TABLE CLASSIQUE À LA TABLE LOGARITHMIQUE (exemple : ln_poverty)
+*	Intérêt/Objectif : Pouvoir interpréter la progression en % de la criminalité plutôt qu'une valeur sans unité 
+*	0.	Justification théorique : Effet d'épuisement
+*	1.	analyse visuelle : 
+reg ln_crimerate ln_poverty, notable
+predict y_hat_ln_fit_pov 
+twoway(scatter ln_crimerate Poverty, msize(vsmall) msymbol(Oh))(lfit ln_crimerate Poverty)(line y_hat_ln_fit_pov Poverty, sort), name(graph_Pov_lnc, replace)  title({stSerif :The poverty effect on crimes}, color(black) size(medium)) note({bf:Source :} Kaggle Dataset, size(vsmall)) graphregion(color(white) margin(medlarge)) aspect(0.5) ytitle({stSerif :{it :ln(Crime Rate)}}) xtitle({stSerif :{it:% Pop Under Poverty Line}}) legend(order( 2 "{stSerif :Linear fit}" 3 "{stSerif :Logarithmic fit}") position(12) col(2) size(vsmall)) note({stSerif :{bf :Source :} Kaggle Dataset})
+*	2.	Regarder l'augmentation du Adj R2. Si Augmentation significative, alors c'est pertinent
+asdoc reg ln_crimerate Poverty, save(Choix de la transformation logarithmique) fhc(\b \i) title(Table 1 : Regression Poverty) replace
+asdoc reg ln_crimerate ln_poverty, save(Choix de la transformation logarithmique) fhc(\b \i) title(Table 2: Regression ln(Poverty))
+*	3.	test de la log-vraissemblance 
+*on compare les AIC et BIC, 
+reg ln_crimerate Poverty, notable
+asdoc estat ic, save(test_log_vraissemblance) title(Table 1 : Results for Poverty) fhc(\b \i) fs(8) replace
+reg ln_crimerate ln_poverty, notable
+asdoc estat ic, save(test_log_vraissemblance) title(Table 2 : Results for ln(Poverty)) fhc(\b \i) 	fs(8)
+			*CETTE MÉTHODE A ÉTÉ RÉPÉTÉE SUR L'ENESEMBLE DES VARIABLES POUR ARBITRER ENTRE VARIABLES CLASSIQUE ET VARIABLES LOGARITHMIQUES
+
+
+
+			
+
+
+	*/	REGRESSION : Table logarithmique
+asdoc mvreg ln_crimerate ln_violent ln_nonviolent ln_murders ln_rapes ln_robberies ln_assaults ln_burglaries ln_larcenies ln_autotheft ln_arsons = ln_poverty ln_unemployed i.Urban_binary pc1_race pc2_race pc3_race Owners ln_educ pc1_div pc2_div i.State, nest replace fs(5) label title(Table 2 : Results) save(logmodel) fhc(\b \i) dec(5)
+
+
+
+	*/	INTERRACTIONS À TESTER : 
+
+*L'effet de l'éducation sur la criminalité pourrait varier selon le niveau de pauvreté
+*1. Education × Poverty
+gen Educ_Pov = Educ*Poverty
+label var Educ_Pov "Educ x Poverty"
+
+gen ln_educ_pov = ln_educ*ln_poverty
+label var ln_educ_pov "ln(Educ) x ln(Poverty)"
+
+*2. Unemployment × Urban
+gen Unemp_Urban = Unemployed*Urban_binary
+label var Unemp_Urban "Unemployed x Urban"
+
+gen ln_unemp_urban = ln_unemployed*Urban_binary
+label var ln_unemp_urban "ln(Unemployed) x ln(Urban)"
+
+*3. Poverty × Ethnicité (minorité)
+gen Pov_Black = Poverty*pc1_race
+label var Pov_Black "Poverty x Black"
+
+gen ln_pov_black = ln_poverty*pc1_race
+label var ln_pov_black "ln(Poverty) x ln(Black)"
+
+*4. Owner × Urban
+gen Owners_Urban = Owners*Urban_binary
+label var Owners_Urban "Owners x Urban"
+
+gen ln_owners_urban = ln_owners*Urban_binary
+label var ln_owners_urban "ln(Owners) x ln(Urban)"
+
+*5. Education × Unemployed
+gen Educ_Unemp = Educ*Unemployed
+label var Educ_Unemp "Educ x Unemployed"
+
+gen ln_educ_unemp = ln_educ*ln_unemployed
+label var ln_educ_unemp "ln(Educ) x ln(Unemployed)"
+
+
+
+	*/ 	METHODE POUR TESTER LES INTERACTIONS : (exemple pour ln_crimerate & ln_educ_pov)
+*	0. Toutes nos interactions ont un appui théorique   
+*	1. Essayer l'interraction sans les autres variables
+asdoc reg ln_burglaries c.Educ#c.Poverty, save(regression interraction seule) title(Table : Regression interraction seule) replace 
+
+*	2. Test de vraissemblance : Critère d'information d'Akaike et Bayesien
+reg ln_burglaries ln_poverty ln_unemployed i.Urban_binary pc1_race pc2_race pc3_race Owners ln_educ pc1_div pc2_div i.State, ro notable
+asdoc estat ic, save(IC_interraction) replace title(Table 1 : W/out_interraction)
+reg ln_burglaries ln_poverty ln_unemployed i.Urban_binary pc1_race pc2_race pc3_race Owners ln_educ pc1_div pc2_div ln_educ_pov i.State, ro notable
+asdoc estat ic , save(IC_interraction) title(Table 2 : W/interraction)
+* Comparer avec les AIC BIC du modèle initial pour voir si l'ajout d'une variable pénalise ou améliore le modèle.
+* Si AIC et BIC inférieurs au modèle initial alors on accepte l'interaction peu importe la significativité et les coefficients. 
+* Ici, l'ajout est pertinent car non seulement AIC et BIC baissent. Mais ils baissent alors qu'on a augmenté la complexité du modèle.
+
+*	3. Illustrer les interactions
+reg ln_burglaries c.ln_educ##c.ln_poverty ln_unemployed i.Urban_binary pc1_race pc2_race pc3_race Owners  pc1_div pc2_div i.State, ro notable
+summarize ln_poverty
+margins, dydx(ln_educ) at(ln_poverty=(0.446(0.1)4.06))
+marginsplot, recastci(rarea)
+* Sur ce graphique, nous voyons que effet marginal de manque d'éducation est croissant de l'augmentation du niveau de pauvreté. Ce qui signfie que le niveau de pauvreté amplifie l'effet du manque d'éducation sur le crime. 
+
+
+
+
+
+
+
+*/ REGRESSION AVEC TOUTES LES INTERRACTIONS, TABLE À UTILISER POUR CONCLURE 
+asdoc mvreg ln_crimerate ln_violent ln_nonviolent ln_murders ln_rapes ln_robberies ln_assaults ln_burglaries ln_larcenies ln_autotheft ln_arsons = ln_poverty ln_unemployed i.Urban_binary pc1_race pc2_race pc3_race Owners ln_educ pc1_div pc2_div ln_educ_pov ln_unemp_urban ln_pov_black ln_owners_urban ln_educ_unemp i.State, nest replace fs(5) label title(Table 2 : Results) save(log) fhc(\b \i) dec(5)
+* En regression multi-variables (mvreg), nous ne pouvons pas utiliser les robust se. Nous ferons abstraction de cela. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
